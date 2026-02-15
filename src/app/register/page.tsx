@@ -41,6 +41,9 @@ export default function RegisterPage() {
         <div className="auth-container">
             <div className="auth-card">
                 <div className="auth-header">
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                        <img src="/logo.png" alt="LSA Logo" style={{ width: '80px', height: '80px', borderRadius: '12px' }} />
+                    </div>
                     <h1 className="auth-title">Create Account</h1>
                     <p className="auth-subtitle">Join LSA Timetable</p>
                 </div>

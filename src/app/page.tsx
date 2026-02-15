@@ -495,8 +495,10 @@ export default function Home() {
       {/* SIDEBAR */}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo">ST</div>
-          {!isSidebarCollapsed && <span className="sidebar-title">Timetable</span>}
+          <div className="sidebar-logo" style={{ background: 'none', padding: 0, overflow: 'hidden' }}>
+            <img src="/logo.png" alt="LSA Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+          {!isSidebarCollapsed && <span className="sidebar-title">LSA Timetable</span>}
           <button
             className="sidebar-toggle-btn"
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -642,7 +644,7 @@ export default function Home() {
             </svg>
           </button>
           <div className="topnav-links">
-            <a className={`topnav-link ${activePage === 'calendar' ? 'active' : ''}`} onClick={() => setActivePage('calendar')}>Timetable</a>
+            <a className={`topnav-link ${activePage === 'calendar' ? 'active' : ''}`} onClick={() => setActivePage('calendar')}>LSA Timetable</a>
             <a className={`topnav-link ${activePage === 'teachers' ? 'active' : ''}`} onClick={() => setActivePage('teachers')}>Teachers</a>
             <a className={`topnav-link ${activePage === 'subjects' ? 'active' : ''}`} onClick={() => setActivePage('subjects')}>Subjects</a>
             <a className={`topnav-link ${activePage === 'students' ? 'active' : ''}`} onClick={() => setActivePage('students')}>Students</a>

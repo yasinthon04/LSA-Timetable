@@ -3,8 +3,11 @@ import "./globals.css";
 import { Providers } from "./Providers";
 
 export const metadata: Metadata = {
-  title: "LSA - Timetable",
+  title: "LSA Timetable",
   description: "Manage school timetables, teachers, subjects, and schedules with a beautiful calendar interface",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({

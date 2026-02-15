@@ -50,6 +50,9 @@ export default function LoginPage() {
         <div className="auth-container">
             <div className="auth-card">
                 <div className="auth-header">
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                        <img src="/logo.png" alt="LSA Logo" style={{ width: '80px', height: '80px', borderRadius: '12px' }} />
+                    </div>
                     <h1 className="auth-title">Welcome Back</h1>
                     <p className="auth-subtitle">Sign in to LSA Timetable</p>
                 </div>
