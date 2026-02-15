@@ -1368,12 +1368,7 @@ body {
   background: var(--bg-secondary);
 }
 
-/* HR Column Special Styles - Remove 'frame' below time */
-.col-period.is-hr .header-period-bottom {
-  border-top: none;
-  background: var(--bg-secondary);
-  /* Seamless merge with top */
-}
+
 
 .header-time {
   font-size: 10px;

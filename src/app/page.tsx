@@ -33,7 +33,7 @@ function calculateTeacherHours(schedules: Schedule[], teacherId: string): string
 
 // ===== CONFIG =====
 const TIME_PERIODS = [
-  { id: 'hr', label: '07:30 - 07:45', start: '07:30', end: '07:45' },
+  { id: 'p0', label: '07:30 - 07:45', start: '07:30', end: '07:45' },
   { id: 'p1', label: '08:00 - 09:00', start: '08:00', end: '09:00', display: '1' },
   { id: 'p2', label: '09:00 - 10:00', start: '09:00', end: '10:00', display: '2' },
   { id: 'b1', label: '10:00 - 10:20', start: '10:00', end: '10:20', isBreak: true },
@@ -151,12 +151,8 @@ export default function Home() {
   }, [showToast]);
 
   useEffect(() => {
-    fetchData().then(() => setLoading(false));
-  }, [fetchData]);
-
-  useEffect(() => {
-    if (selectedYearGroup) fetchSchedules();
-  }, [selectedYearGroup, fetchSchedules]);
+    Promise.all([fetchData(), fetchSchedules()]).then(() => setLoading(false));
+  }, [fetchData, fetchSchedules]);
 
   // No filteredSchedules state needed for rendering anymore
   // We filter inside the render to show all but dim unselected
@@ -831,36 +827,38 @@ export default function Home() {
       }
 
       {/* CONFIRMATION MODAL */}
-      {confirmationModal.open && (
-        <div className="modal-overlay" onClick={() => setConfirmationModal(prev => ({ ...prev, open: false }))}>
-          <div className="modal" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">{confirmationModal.title}</h2>
-              <button className="modal-close" onClick={() => setConfirmationModal(prev => ({ ...prev, open: false }))}>×</button>
-            </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: 24, fontSize: 14, color: 'var(--text-secondary)' }}>{confirmationModal.message}</p>
-              <div className="form-actions">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setConfirmationModal(prev => ({ ...prev, open: false }))}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => {
-                    confirmationModal.onConfirm();
-                    setConfirmationModal(prev => ({ ...prev, open: false }));
-                  }}
-                >
-                  Delete
-                </button>
+      {
+        confirmationModal.open && (
+          <div className="modal-overlay" onClick={() => setConfirmationModal(prev => ({ ...prev, open: false }))}>
+            <div className="modal" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2 className="modal-title">{confirmationModal.title}</h2>
+                <button className="modal-close" onClick={() => setConfirmationModal(prev => ({ ...prev, open: false }))}>×</button>
+              </div>
+              <div className="modal-body">
+                <p style={{ marginBottom: 24, fontSize: 14, color: 'var(--text-secondary)' }}>{confirmationModal.message}</p>
+                <div className="form-actions">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setConfirmationModal(prev => ({ ...prev, open: false }))}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => {
+                      confirmationModal.onConfirm();
+                      setConfirmationModal(prev => ({ ...prev, open: false }));
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* TOAST */}
       {
