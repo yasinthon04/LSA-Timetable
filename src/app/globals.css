@@ -1284,6 +1284,13 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
+  transition: all 0.3s ease;
+}
+
+.timetable-matrix.is-edit-mode {
+  outline: 2px dashed #4f46e5;
+  outline-offset: -2px;
+  background: rgba(79, 70, 229, 0.02);
 }
 
 .matrix-header-row {
@@ -1298,8 +1305,81 @@ body {
   /* Subtle lift effect */
   width: 100%;
   min-height: 70px;
-  /* Aligns with 38px (top) + 32px (bottom) */
 }
+
+/* Edit Mode Buttons */
+.btn-edit-mode {
+  height: 38px;
+  padding: 0 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  box-sizing: border-box;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.btn-edit-mode-enter {
+  background: var(--accent-primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.btn-edit-mode-enter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+  filter: brightness(1.1);
+}
+
+.btn-edit-mode-save {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  min-width: 175px;
+  justify-content: center;
+}
+
+.btn-edit-mode-save:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  filter: brightness(1.05);
+}
+
+.btn-edit-mode-cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fca5a5;
+  border: 1px solid rgba(252, 165, 165, 0.2);
+}
+
+.btn-edit-mode-cancel:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.btn-edit-mode:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Aligns with 38px (top) + 32px (bottom) */
 
 .header-cell {
   font-size: 13px;

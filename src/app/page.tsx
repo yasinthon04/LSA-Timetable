@@ -109,6 +109,12 @@ export default function Home() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Edit Mode States
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const [editSnapshot, setEditSnapshot] = useState<Schedule[]>([]);
+
   // Set mounted flag
   useEffect(() => {
     setMounted(true);
@@ -187,14 +193,123 @@ export default function Home() {
   }, [groupedSubjectsByType]);
 
 
+  // Edit Mode Actions
+  const handleEnterEditMode = () => {
+    setEditSnapshot([...schedules]);
+    setIsEditMode(true);
+    setDeletedIds(new Set());
+    showToast('Edit Mode: ON. Changes are local until you click Save All.', 'success');
+  };
+
+  const handleCancelEditMode = () => {
+    setSchedules(editSnapshot);
+    setIsEditMode(false);
+    setDeletedIds(new Set());
+    showToast('Edit Mode: OFF. Changes discarded.', 'error');
+  };
+
+  const handleBulkSave = async () => {
+    setIsSavingBulk(true);
+    try {
+      // 1. Deletions
+      const deletePromises = Array.from(deletedIds).map(id =>
+        fetch(`/api/schedules/${id}`, { method: 'DELETE' })
+      );
+
+      // 2. Creates & Updates
+      const mutations = schedules.map(s => {
+        const isNew = s.id.startsWith('temp-');
+        const original = editSnapshot.find(os => os.id === s.id);
+
+        const hasChanged = !original || (
+          original.teacherId !== s.teacherId ||
+          original.subjectId !== s.subjectId ||
+          original.yearGroupId !== s.yearGroupId ||
+          original.dayOfWeek !== s.dayOfWeek ||
+          original.startTime !== s.startTime ||
+          original.endTime !== s.endTime
+        );
+
+        if (isNew) {
+          return fetch('/api/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              teacherId: s.teacherId,
+              subjectId: s.subjectId,
+              yearGroupId: s.yearGroupId,
+              dayOfWeek: s.dayOfWeek,
+              startTime: s.startTime,
+              endTime: s.endTime
+            })
+          });
+        } else if (hasChanged) {
+          return fetch(`/api/schedules/${s.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              teacherId: s.teacherId,
+              subjectId: s.subjectId,
+              yearGroupId: s.yearGroupId,
+              dayOfWeek: s.dayOfWeek,
+              startTime: s.startTime,
+              endTime: s.endTime
+            })
+          });
+        }
+        return null;
+      }).filter(p => p !== null) as Promise<Response>[];
+
+      await Promise.all([...deletePromises, ...mutations]);
+
+      showToast('All changes saved to cloud', 'success');
+      setIsEditMode(false);
+      setDeletedIds(new Set());
+      await fetchSchedules();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to save some changes', 'error');
+    } finally {
+      setIsSavingBulk(false);
+    }
+  };
+
   // Schedule CRUD
   const handleSaveSchedule = async (data: ScheduleFormData, id?: string) => {
     const previousSchedules = [...schedules];
 
+    // Close modal immediately for instant feedback
+    setModalState({ open: false, mode: 'create' });
+
     try {
-      // Optimistic update for existing schedules
       if (id) {
+        // Optimistic update for existing schedules
         setSchedules(prev => prev.map(s => s.id === id ? { ...s, ...data } as Schedule : s));
+      } else {
+        // Optimistic create for new schedules
+        const tempId = `temp-${Date.now()}`;
+        const newSchedule: Schedule = {
+          id: tempId,
+          teacherId: data.teacherId,
+          subjectId: data.subjectId,
+          yearGroupId: data.yearGroupId || null,
+          dayOfWeek: data.dayOfWeek,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          createdAt: new Date().toISOString(),
+          // Populate relations for tooltip/rendering
+          teacher: teachers.find(t => t.id === data.teacherId)!,
+          subject: subjects.find(s => s.id === data.subjectId)!,
+          yearGroup: yearGroups.find(y => y.id === data.yearGroupId),
+          studentSchedules: []
+        };
+        setSchedules(prev => [...prev, newSchedule]);
+      }
+
+      // If in edit mode, stop here and don't call API
+      if (isEditMode) {
+        showToast(id ? 'Update pending (Edit Mode)' : 'Creation pending (Edit Mode)');
+        return;
       }
 
       const method = id ? 'PUT' : 'POST';
@@ -205,21 +320,21 @@ export default function Home() {
         body: JSON.stringify(data),
       });
 
-      const result = await res.json();
-
       if (!res.ok) {
+        const result = await res.json();
         throw new Error(result.details || result.error || 'Unknown error');
       }
 
-      // Re-fetch to get complete data (like relations/students) or update IDs for new items
+      // Re-fetch in background to sync with server IDs and relationships
       await fetchSchedules();
-      setModalState({ open: false, mode: 'create' });
       showToast(id ? 'Schedule updated' : 'Schedule created');
     } catch (err: any) {
       // Rollback on error
       setSchedules(previousSchedules);
       console.error('Save error:', err);
       showToast(`Failed to save: ${err.message}`, 'error');
+      // Re-open if failed? Usually users prefer correction
+      setModalState({ open: true, mode: id ? 'edit' : 'create', schedule: id ? schedules.find(s => s.id === id) : undefined, prefill: data });
     }
   };
 
@@ -379,6 +494,19 @@ export default function Home() {
     try {
       // Optimistic delete
       setSchedules(prev => prev.filter(s => s.id !== id));
+
+      if (isEditMode) {
+        if (!id.startsWith('temp-')) {
+          setDeletedIds(prev => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+          });
+        }
+        setModalState({ open: false, mode: 'create' });
+        showToast('Delete pending (Edit Mode)');
+        return;
+      }
 
       const res = await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
@@ -561,8 +689,8 @@ export default function Home() {
                       <div
                         key={subject.id}
                         className={`sidebar-item ${selectedSubjectIds.has(subject.id) ? 'active' : ''}`}
-                        draggable={isAdmin}
-                        onDragStart={(e) => isAdmin && handleDragStart(e, 'create', { subjectId: subject.id })}
+                        draggable={isAdmin && isEditMode}
+                        onDragStart={(e) => isAdmin && isEditMode && handleDragStart(e, 'create', { subjectId: subject.id })}
                         onClick={() => {
                           setSelectedSubjectIds(prev => {
                             const next = new Set(prev);
@@ -754,10 +882,52 @@ export default function Home() {
                   </svg>
                 </div>
               </div>
+
+              {isAdmin && (
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
+                  {!isEditMode ? (
+                    <button
+                      className="btn-edit-mode btn-edit-mode-enter"
+                      onClick={handleEnterEditMode}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                      Edit Timetable
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        className="btn-edit-mode btn-edit-mode-cancel"
+                        onClick={handleCancelEditMode}
+                        disabled={isSavingBulk}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        Cancel
+                      </button>
+                      <button
+                        className="btn-edit-mode btn-edit-mode-save"
+                        onClick={handleBulkSave}
+                        disabled={isSavingBulk}
+                      >
+                        {isSavingBulk ? (
+                          <>
+                            <div className="btn-spinner"></div>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                            Save All Changes
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* TEACHER MATRIX */}
-            <div className="timetable-matrix">
+            <div className={`timetable-matrix ${isEditMode ? 'is-edit-mode' : ''}`}>
               {/* Main Header (Periods) */}
               <div className="matrix-header-row">
                 <div className="col-day header-cell">Day</div>
@@ -868,11 +1038,11 @@ export default function Home() {
 
                                   // Drop Target (Container)
                                   onDragOver={isAdmin ? handleDragOver : undefined}
-                                  onDrop={isAdmin ? (e) => handleDrop(e, teacher.id, dayIdx, period) : undefined}
+                                  onDrop={(isAdmin && isEditMode) ? (e) => handleDrop(e, teacher.id, dayIdx, period) : undefined}
 
                                   // Click empty space -> Create
                                   onClick={() => {
-                                    if (!isAdmin) return;
+                                    if (!isAdmin || !isEditMode) return;
                                     setModalState({
                                       open: true, mode: 'create', prefill: {
                                         teacherId: teacher.id,
@@ -918,15 +1088,15 @@ export default function Home() {
                                         key={sched.id}
                                         className="cell-content"
                                         style={cardStyle}
-                                        draggable={isAdmin}
+                                        draggable={isAdmin && isEditMode}
                                         onDragStart={(e) => {
-                                          if (!isAdmin) return;
+                                          if (!isAdmin || !isEditMode) return;
                                           e.stopPropagation();
                                           handleDragStart(e, 'move', { scheduleId: sched.id });
                                         }}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setModalState({ open: true, mode: isAdmin ? 'edit' : 'read', schedule: sched });
+                                          setModalState({ open: true, mode: (isAdmin && isEditMode) ? 'edit' : 'read', schedule: sched });
                                         }}
                                       >
                                         {/* TOOLTIP ON HOVER */}
