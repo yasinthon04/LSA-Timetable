@@ -1,5 +1,7 @@
 # 🗓️ LSA Timetable Management System
 
+![Dashboard Preview](./public/preview.png)
+
 A high-performance, modern school timetable management application built with **Next.js**, **Prisma**, and **Supabase**. This project features a teacher-centric Staff Availability Matrix with real-time drag-and-drop scheduling functionality.
 
 ---
